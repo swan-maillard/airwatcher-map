@@ -134,10 +134,9 @@ function compareDates(a: string, b: string): number {
 }
 
 // --map.lower_bound(date): the last reading the map orders before the given date.
-export function valueBefore(readings: Reading[], date: string): number {
+export function readingBefore(readings: Reading[], date: string): Reading {
   const index = readings.findIndex((reading) => !dateLess(reading.date, date));
-  const before = index === -1 ? readings.length - 1 : index - 1;
-  return readings[before].value;
+  return readings[index === -1 ? readings.length - 1 : index - 1];
 }
 
 export function readingOn(readings: Reading[], date: string): number {

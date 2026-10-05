@@ -2,7 +2,7 @@ import {
   POLLUTANTS,
   lastValue,
   readingOn,
-  valueBefore,
+  readingBefore,
   type AirCleaner,
   type Pollutant,
   type Position,
@@ -135,8 +135,8 @@ function cleanerStep(cleaner: AirCleaner, near: Neighbour): CleanerStep {
   const after = zeros();
   const reduction = zeros();
   for (const p of CLEANER_ORDER) {
-    before[p] = valueBefore(near.sensor.readings[p], cleaner.start);
-    after[p] = valueBefore(near.sensor.readings[p], cleaner.end);
+    before[p] = readingBefore(near.sensor.readings[p], cleaner.start).value;
+    after[p] = readingBefore(near.sensor.readings[p], cleaner.end).value;
     reduction[p] = (before[p] - after[p]) / before[p];
   }
   const hasEffect = !CLEANER_ORDER.every((p) => reduction[p] < EFFECT_THRESHOLD);

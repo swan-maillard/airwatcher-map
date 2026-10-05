@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>AirWatcher sensor map</title>
+    <meta
+      name="description"
+      content="An interactive map of the AirWatcher sensor network: pick a sensor to see why the faulty-sensor scan from our INSA Lyon C++ project flags it or not, and check the two air cleaners."
+    />
+    <meta name="theme-color" content="#0D161C" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body>
+    <header class="intro">
+      <h1>AirWatcher</h1>
+      <p class="lede">
+        A C++ console app we wrote in our third year at INSA Lyon. It reads a year of readings from 100 air-quality
+        sensors, finds the ones that look faulty and checks whether two air cleaners did anything.
+      </p>
+      <p class="links">
+        <a href="https://github.com/swan-maillard/INSA-3A-AirWatcher">Code of the original project</a>
+        <a href="https://swan-maillard.github.io/#work">Swan Maillard</a>
+      </p>
+    </header>
+
+    <main>
+      <section class="stage" aria-label="Sensor map">
+        <div class="map-card">
+          <div class="map-toolbar">
+            <label class="field">
+              <span>Sensor or air cleaner</span>
+              <select id="picker"></select>
+            </label>
+            <p class="map-hint">Click or tap a dot, or focus the map and use the arrow keys.</p>
+          </div>
+          <div id="map" class="map"></div>
+          <p id="map-summary" class="visually-hidden"></p>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="key key-sensor" aria-hidden="true"></span>Sensor</li>
+            <li><span class="key key-flagged" aria-hidden="true"></span>Flagged by the scan</li>
+            <li><span class="key key-neighbour" aria-hidden="true"></span>Used by the selected check</li>
+            <li><span class="key key-cleaner" aria-hidden="true"></span>Air cleaner</li>
+          </ul>
+        </div>
+
+        <aside id="panel" class="card panel" aria-labelledby="panel-title"></aside>
+
+        <section class="card tryit" aria-labelledby="tryit-title">
+          <h2 id="tryit-title">Try it yourself</h2>
+          <p class="small">
+            This part goes beyond what the original did. It always used 5 neighbours, the variance as is, and each
+            sensor's last reading (31 December 2019). Move a slider and watch which sensors get flagged.
+          </p>
+          <div class="sliders">
+            <div class="slider">
+              <label for="neighbours">Neighbours</label>
+              <input id="neighbours" type="range" min="2" max="10" step="1" value="5" />
+              <output id="neighbours-out" for="neighbours">5</output>
+            </div>
+            <div class="slider">
+              <label for="factor">Tolerance (times the variance)</label>
+              <input id="factor" type="range" min="0.25" max="3" step="0.25" value="1" />
+              <output id="factor-out" for="factor">1</output>
+            </div>
+            <div class="slider">
+              <label for="day">Day of readings</label>
+              <input id="day" type="range" min="0" max="364" step="1" value="364" />
+              <output id="day-out" for="day">31 Dec 2019</output>
+            </div>
+          </div>
+          <div class="tryit-foot">
+            <p id="settings-status" class="status" aria-live="polite"></p>
+            <button id="reset" type="button">Back to the original</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="explain" aria-labelledby="explain-title">
+        <h2 id="explain-title">What you're looking at</h2>
+        <p>
+          Each dot is a sensor from the project's data set: 100 sensors on a 10 by 10 grid between 44° and 47.6° north,
+          each giving one reading a day through 2019 for four pollutants. Those are ozone (O₃), sulphur dioxide (SO₂),
+          nitrogen dioxide (NO₂) and fine particles (PM10), all in µg/m³. The two squares are air cleaners. There's no
+          base map, the dots are placed from their latitude and longitude.
+        </p>
+        <p>
+          The scan I wrote looks for sensors that disagree with the sensors around them. For each sensor, it takes the
+          five closest other sensors and their last readings. From those it builds, per pollutant, a reference (a mean)
+          and a tolerance (the variance, a measure of how spread out the neighbours are). If the sensor's own reading is
+          further from the reference than the tolerance for any of the four pollutants, it's flagged as probably
+          faulty. On this data it flags 6 of the 100 sensors.
+        </p>
+        <p>
+          The air-cleaner check compares each sensor's reading just before a cleaner was switched on with its reading
+          just before it was switched off. A drop of 25% or more in at least one pollutant counts as an effect. It walks
+          outwards from the cleaner, sensor by sensor, and the distance to the last sensor that still shows an effect is
+          the cleaner's radius. Sensors flagged by the scan are left out.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Ported from <a href="https://github.com/swan-maillard/INSA-3A-AirWatcher">INSA-3A-AirWatcher</a> (third-year C++ project,
+        INSA Lyon, 2023). Built by Swan Maillard.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
