@@ -12,7 +12,7 @@ export interface MapItem {
 export interface MapView {
   selected: string;
   flagged: Set<string>;
-  highlighted: Set<string>;
+  inUse: Set<string>;
   links: { to: string; miss?: boolean }[];
   labels: (key: string) => string;
 }
@@ -139,14 +139,14 @@ export class SensorMap {
     this.view = view;
     for (const [key, p] of this.placed) {
       const selected = key === view.selected;
-      const highlighted = view.highlighted.has(key);
+      const inUse = view.inUse.has(key);
       p.group.classList.toggle("selected", selected);
-      p.group.classList.toggle("neighbour", highlighted);
+      p.group.classList.toggle("neighbour", inUse);
       p.group.classList.toggle("flagged", view.flagged.has(key));
       p.group.setAttribute("tabindex", selected ? "0" : "-1");
       p.group.setAttribute("aria-pressed", String(selected));
       p.group.setAttribute("aria-label", view.labels(key));
-      const named = selected || highlighted || (p.item.kind === "cleaner" && this.showAllIds);
+      const named = selected || inUse || (p.item.kind === "cleaner" && this.showAllIds);
       p.label.textContent = named || this.showAllIds ? this.shortName(p.item) : "";
       p.label.classList.toggle("strong", named);
     }

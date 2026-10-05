@@ -75,32 +75,32 @@ async function start() {
       if (k === "s") option.textContent = `Sensor ${i}${flaggedKeys.has(option.value) ? " (flagged)" : ""}`;
     }
 
-    let highlighted: string[] = [];
+    let inUse: string[] = [];
     let links: { to: string; miss?: boolean }[] = [];
     let summary: string;
     if (kind === "s") {
       const result = scan[id];
-      highlighted = result.neighbours.map((n) => `s:${n.sensor.id}`);
-      links = highlighted.map((to) => ({ to }));
+      inUse = result.neighbours.map((n) => `s:${n.sensor.id}`);
+      links = inUse.map((to) => ({ to }));
       panel.showSensor(result, context);
       summary = `Selected: sensor ${id}, ${result.flagged ? "flagged" : "not flagged"}, with neighbours ${list(result.neighbours.map((n) => n.sensor.id))}.`;
     } else {
       const result = cleanerResults.get(id)!;
-      highlighted = result.steps.filter((s) => s.hasEffect).map((s) => `s:${s.sensor.id}`);
+      inUse = result.steps.filter((s) => s.hasEffect).map((s) => `s:${s.sensor.id}`);
       links = result.steps.map((s) => ({ to: `s:${s.sensor.id}`, miss: !s.hasEffect }));
       panel.showCleaner(result, context);
-      summary = `Selected: air cleaner ${id}. ${result.hadEffect ? `Sensors showing its effect: ${list(highlighted.map((k) => k.slice(2)))}.` : "No effect found."}`;
+      summary = `Selected: air cleaner ${id}. ${result.hadEffect ? `Sensors showing its effect: ${list(inUse.map((k) => k.slice(2)))}.` : "No effect found."}`;
     }
 
     map.update({
       selected,
       flagged: flaggedKeys,
-      highlighted: new Set(highlighted),
+      inUse: new Set(inUse),
       links,
       labels: (key) => {
         const [k, i] = key.split(":");
         if (k === "c") return `Air cleaner ${i}`;
-        return `Sensor ${i}${flaggedKeys.has(key) ? ", flagged" : ""}${highlighted.includes(key) ? ", neighbour" : ""}`;
+        return `Sensor ${i}${flaggedKeys.has(key) ? ", flagged" : ""}${inUse.includes(key) ? ", used by the selected check" : ""}`;
       },
     });
     $("map-summary").textContent = `Map of ${sensors.length} sensors and ${cleaners.length} air cleaners. ${flagged.length} sensors are flagged${flagged.length ? `: ${list(flagged)}` : ""}. ${summary}`;
