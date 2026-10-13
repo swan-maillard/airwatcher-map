@@ -84,8 +84,7 @@
           A sensor is flagged when it disagrees with the sensors around it. The scan takes its 5 closest sensors, and
           for each pollutant computes the mean of their readings and their variance. If the sensor's own reading is
           further from the mean than the variance, for any pollutant, it's flagged. With these settings 6 sensors out of
-          100 are flagged. Comparing a gap with a variance doesn't really make sense (they're not even in the same
-          unit), but it's what we did at the time and I kept it as it was.
+          100 are flagged.
         </p>
         <p>
           For an air cleaner, each sensor's reading just before it was switched on is compared with its reading just
