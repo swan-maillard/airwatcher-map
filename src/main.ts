@@ -29,7 +29,7 @@ async function start() {
     sensors = parseSensors(sensorsCsv, measurementsCsv);
     cleaners = parseCleaners(cleanersCsv);
   } catch (error) {
-    panel.showError(`The CSV files didn't load (${String(error)}). Reloading the page usually fixes it.`);
+    panel.showError(`The CSV files didn't load (${String(error)}). Try reloading the page.`);
     return;
   }
 
@@ -43,7 +43,11 @@ async function start() {
 
   let settings: ScanSettings = { ...ORIGINAL_SETTINGS };
   let scan: SensorScan[] = original;
-  let selected = "s:43";
+  // A hash like #s:12 or #c:1 opens that sensor or cleaner, so a selection can be linked.
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  const known = (key: string) =>
+    key.startsWith("s:") ? Number(key.slice(2)) < sensors.length : cleaners.some((c) => `c:${c.id}` === key);
+  let selected = /^[sc]:\d+$/.test(fromHash) && known(fromHash) ? fromHash : "s:43";
 
   const items: MapItem[] = [
     ...sensors.map((s) => ({ key: `s:${s.id}`, kind: "sensor" as const, id: s.id, position: s.position })),
@@ -60,6 +64,7 @@ async function start() {
 
   function select(key: string) {
     selected = key;
+    history.replaceState(null, "", `#${key}`);
     render();
   }
 
@@ -139,8 +144,9 @@ async function start() {
     const status = $("settings-status");
     const which = flagged.length && flagged.length <= 12 ? `: ${list(flagged)}` : "";
     status.innerHTML = isOriginal()
-      ? `Original behaviour. ${flagged.length} sensors flagged${which}.`
-      : `Changed from the original. <strong>${flagged.length} sensors flagged</strong>${which}. The original flags ${originalFlags.length}.`;
+      ? `Original settings: ${flagged.length} sensors flagged${which}.`
+      : `<strong>${flagged.length} sensors flagged</strong>${which}. With the original settings it's ${originalFlags.length}.`;
+    $<HTMLButtonElement>("reset").disabled = isOriginal();
   }
 
   for (const input of [neighbours, factor, day]) input.addEventListener("input", readSettings);

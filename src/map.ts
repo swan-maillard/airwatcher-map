@@ -40,7 +40,7 @@ export class SensorMap {
   private linkLayer!: SVGGElement;
   private placed = new Map<string, Placed>();
   private view?: MapView;
-  private width = 0;
+  private sizeKey = "";
   private showAllIds = false;
 
   constructor(
@@ -51,24 +51,31 @@ export class SensorMap {
     this.svg = el("svg", { role: "group", "aria-label": "Sensor map" });
     container.append(this.svg);
     new ResizeObserver(() => this.layout()).observe(container);
+    window.addEventListener("resize", () => this.layout());
     this.layout();
   }
 
   private layout() {
-    const width = Math.round(this.container.clientWidth);
-    if (width === 0 || width === this.width) return;
-    this.width = width;
+    const available = Math.round(this.container.clientWidth);
+    // On a wide screen the grid is limited by the window height, so the whole map fits without scrolling.
+    const maxHeight = window.innerWidth >= 980 ? Math.max(380, window.innerHeight - 190) : Infinity;
+    const sizeKey = `${available}x${maxHeight}`;
+    if (available === 0 || sizeKey === this.sizeKey) return;
+    this.sizeKey = sizeKey;
     const hadFocus = this.svg.contains(document.activeElement);
 
     const lats = this.items.map((i) => i.position.latitude);
     const lons = this.items.map((i) => i.position.longitude);
     const [latMin, latMax] = [Math.min(...lats), Math.max(...lats)];
     const [lonMin, lonMax] = [Math.min(...lons), Math.max(...lons)];
-    const narrow = width < 520;
+    const narrow = available < 520;
     const MARGIN = { top: 22, right: narrow ? 16 : 24, bottom: 40, left: narrow ? 46 : 64 };
     const squeeze = Math.cos((((latMin + latMax) / 2) * Math.PI) / 180);
-    const plotWidth = width - MARGIN.left - MARGIN.right;
-    const scale = plotWidth / ((lonMax - lonMin) * squeeze);
+    const scale = Math.min(
+      (available - MARGIN.left - MARGIN.right) / ((lonMax - lonMin) * squeeze),
+      (maxHeight - MARGIN.top - MARGIN.bottom) / (latMax - latMin),
+    );
+    const width = Math.round((lonMax - lonMin) * squeeze * scale + MARGIN.left + MARGIN.right);
     const height = Math.round((latMax - latMin) * scale + MARGIN.top + MARGIN.bottom);
     const x = (lon: number) => MARGIN.left + (lon - lonMin) * squeeze * scale;
     const y = (lat: number) => MARGIN.top + (latMax - lat) * scale;
@@ -111,11 +118,15 @@ export class SensorMap {
         group.append(el("circle", { class: "focus", cx: px, cy: py, r: r + 8 }));
       } else {
         const s = r * 2 + 2;
-        group.append(el("rect", { class: "dot", x: px - s / 2, y: py - s / 2, width: s, height: s, rx: 3 }));
-        group.append(el("rect", { class: "ring", x: px - s / 2 - 4, y: py - s / 2 - 4, width: s + 8, height: s + 8, rx: 5 }));
-        group.append(el("rect", { class: "focus", x: px - s / 2 - 8, y: py - s / 2 - 8, width: s + 16, height: s + 16, rx: 7 }));
+        group.append(el("rect", { class: "dot", x: px - s / 2, y: py - s / 2, width: s, height: s, rx: 1 }));
+        group.append(el("rect", { class: "ring", x: px - s / 2 - 4, y: py - s / 2 - 4, width: s + 8, height: s + 8, rx: 1 }));
+        group.append(el("rect", { class: "focus", x: px - s / 2 - 8, y: py - s / 2 - 8, width: s + 16, height: s + 16, rx: 1 }));
       }
-      const label = el("text", { class: "label", x: px + r + 3, y: py - r - 2 });
+      // Cleaners sit between grid rows, so their name goes underneath to stay clear of the sensor numbers.
+      const label =
+        item.kind === "sensor"
+          ? el("text", { class: "label", x: px + r + 3, y: py - r - 2 })
+          : el("text", { class: "label", x: px, y: py + r + 18, "text-anchor": "middle" });
       group.append(label);
       group.addEventListener("click", () => this.onSelect(item.key));
       group.addEventListener("keydown", (event) => this.onKey(event, item.key));
@@ -146,8 +157,10 @@ export class SensorMap {
       p.group.setAttribute("tabindex", selected ? "0" : "-1");
       p.group.setAttribute("aria-pressed", String(selected));
       p.group.setAttribute("aria-label", view.labels(key));
-      const named = selected || inUse || (p.item.kind === "cleaner" && this.showAllIds);
-      p.label.textContent = named || this.showAllIds ? this.shortName(p.item) : "";
+      const named = selected || inUse;
+      // A cleaner's name only shows once it's selected, the legend already says what the squares are.
+      const shown = p.item.kind === "cleaner" ? selected : named || this.showAllIds;
+      p.label.textContent = shown ? this.shortName(p.item) : "";
       p.label.classList.toggle("strong", named);
     }
 

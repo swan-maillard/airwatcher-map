@@ -32,7 +32,8 @@ export class Panel {
     this.title = document.createElement("h2");
     this.title.id = "panel-title";
     this.pill = document.createElement("span");
-    this.pill.className = "pill";
+    this.pill.className = "status-word";
+    this.pill.hidden = true;
     head.append(this.title, this.pill);
 
     this.verdict = document.createElement("div");
@@ -43,8 +44,8 @@ export class Panel {
     this.details.className = "panel-details";
 
     root.append(head, this.verdict, this.details);
-    this.title.textContent = "Loading the readings";
-    this.verdict.innerHTML = "<p>Reading 146,000 measurements from the original CSV files.</p>";
+    this.title.textContent = "Loading";
+    this.verdict.innerHTML = "<p>Reading the 146,000 measurements from the CSV files...</p>";
   }
 
   showError(message: string) {
@@ -57,7 +58,7 @@ export class Panel {
     const id = scan.sensor.id;
     this.title.textContent = `Sensor ${id}`;
     this.pill.hidden = false;
-    this.pill.textContent = scan.flagged ? "Flagged by the scan" : "Not flagged";
+    this.pill.textContent = scan.flagged ? "Flagged" : "Not flagged";
     this.pill.classList.toggle("alert", scan.flagged);
     this.verdict.innerHTML = sensorVerdict(scan);
 
@@ -65,19 +66,18 @@ export class Panel {
     const neighbours = scan.neighbours
       .map(
         (n) =>
-          `<li><button type="button" data-key="s:${n.sensor.id}">Sensor ${n.sensor.id} · ${km(n.distance)}</button></li>`,
+          `<li><button type="button" data-key="s:${n.sensor.id}" aria-label="Sensor ${n.sensor.id}, ${km(n.distance)} away"><b>${n.sensor.id}</b><span>${km(n.distance)}</span></button></li>`,
       )
       .join("");
 
     this.details.innerHTML = `
       <p class="small">${readingsNote(context)}</p>
       <div class="checks">${checks}</div>
-      <p class="small">The reference is a mean of the neighbours' readings. The tolerance is the variance of their
-        readings for that pollutant. A reading further from the reference than the tolerance fails the check.</p>
+      <p class="small">The shaded band is the tolerance around the neighbours' mean (the line), and the diamond is
+        this sensor's reading. Outside the band on any pollutant means flagged.</p>
       <div class="sub">
-        <h3>Its ${scan.neighbours.length} nearest sensors</h3>
-        <ul class="chips">${neighbours}</ul>
-        <p class="small">Distances are the ones the original computes, in km.</p>
+        <h3>Its ${scan.neighbours.length} closest sensors</h3>
+        <ul class="neighbours">${neighbours}</ul>
       </div>`;
     this.bindButtons(context);
   }
@@ -86,8 +86,8 @@ export class Panel {
     const { cleaner, steps } = result;
     this.title.textContent = `Air cleaner ${cleaner.id}`;
     this.pill.hidden = false;
-    this.pill.textContent = result.hadEffect ? "Had an effect" : "No effect found";
-    this.pill.classList.remove("alert");
+    this.pill.textContent = result.hadEffect ? "Had an effect" : "No effect";
+    this.pill.classList.toggle("alert", result.hadEffect);
     this.verdict.innerHTML = cleanerVerdict(result);
 
     const first = steps[0].sensor;
@@ -103,11 +103,10 @@ export class Panel {
     const heads = CLEANER_ORDER.map((p) => `<th scope="col">${name(p)}</th>`).join("");
 
     this.details.innerHTML = `
-      <p class="small">It ran from ${dateAndTime(cleaner.start)} to ${dateAndTime(cleaner.end)}. Each sensor's
-        reading from ${longDate(before)} is compared with its reading from ${longDate(after)}, the last ones before
-        the cleaner was switched on and off.</p>
+      <p class="small">Switched on ${dateAndTime(cleaner.start)}, off ${dateAndTime(cleaner.end)}. Each sensor's
+        reading of ${longDate(before)} is compared with its reading of ${longDate(after)}.</p>
       <div class="sub">
-        <h3>Sensors checked, nearest first</h3>
+        <h3>Drop per sensor, closest first</h3>
         <div class="table-wrap">
           <table>
             <caption class="visually-hidden">Drop in each pollutant per sensor, in percent</caption>
@@ -115,9 +114,8 @@ export class Panel {
             <tbody>${rows}</tbody>
           </table>
         </div>
-        <p class="small">Drops are in percent, cut to whole numbers like the original prints them. A drop of
-          ${EFFECT_THRESHOLD * 100}% or more in any one pollutant counts as an effect. Sensors flagged by the scan
-          (${list(context.originalFlags)}) are left out, like in the original.</p>
+        <p class="small">In percent, rounded down like the C++ prints them. ${EFFECT_THRESHOLD * 100}% or more in one
+          pollutant counts as an effect. Flagged sensors (${list(context.originalFlags)}) are skipped.</p>
       </div>`;
     this.bindButtons(context);
   }
@@ -132,13 +130,13 @@ export class Panel {
 function readingsNote({ settings, lastDate }: PanelContext): string {
   const parts: string[] = [];
   if (settings.date === undefined) {
-    parts.push(`Readings from ${longDate(lastDate)}, each sensor's last day, which is what the original always uses.`);
+    parts.push(`Readings of ${longDate(lastDate)}, the last day of data.`);
   } else {
-    parts.push(`Readings from ${longDate(settings.date)}. The original only looks at the last reading (${longDate(lastDate)}).`);
+    parts.push(`Readings of ${longDate(settings.date)}. The original always uses the last day (${longDate(lastDate)}).`);
   }
   if (settings.neighbours !== ORIGINAL_SETTINGS.neighbours || settings.toleranceFactor !== ORIGINAL_SETTINGS.toleranceFactor) {
     parts.push(
-      `Using ${settings.neighbours} neighbours, with ${settings.toleranceFactor === 1 ? "the variance" : `${settings.toleranceFactor} times the variance`} as the tolerance. The original uses 5 neighbours and the variance as is.`,
+      `${settings.neighbours} neighbours, tolerance ${settings.toleranceFactor === 1 ? "equal to the variance" : `${settings.toleranceFactor} times the variance`}. The original uses 5 neighbours and the variance.`,
     );
   }
   return parts.join(" ");
@@ -149,7 +147,7 @@ function sensorVerdict(scan: SensorScan): string {
   const outside = POLLUTANTS.filter((p) => scan.checks[p].outside);
   const failing = (p: Pollutant) => {
     const c = scan.checks[p];
-    return `its ${name(p)} reading of ${two(c.reading)} is ${two(c.gap)} away from the reference of ${two(c.reference)}, more than the tolerance of ${two(c.tolerance)}`;
+    return `its ${name(p)} reading of ${two(c.reading)} is ${two(c.gap)} away from the neighbours' mean (${two(c.reference)}), and the tolerance is only ${two(c.tolerance)}`;
   };
 
   if (outside.length === 1) return `<p>Sensor ${id} is flagged: ${failing(outside[0])}.</p>`;
@@ -160,9 +158,8 @@ function sensorVerdict(scan: SensorScan): string {
 
   const closest = POLLUTANTS.reduce((a, b) => (ratio(scan.checks[b]) > ratio(scan.checks[a]) ? b : a));
   const c = scan.checks[closest];
-  return `<p>Sensor ${id} isn't flagged: all four readings are within the tolerance of their reference. The closest
-    call is ${name(closest)}, ${two(c.gap)} away from the reference of ${two(c.reference)} with a tolerance of
-    ${two(c.tolerance)}.</p>`;
+  return `<p>Sensor ${id} isn't flagged, its four readings are close enough to its neighbours'. The closest one to
+    the limit is ${name(closest)}: ${two(c.gap)} away from the mean, with a tolerance of ${two(c.tolerance)}.</p>`;
 }
 
 const ratio = (c: Check) => (c.tolerance === 0 ? Infinity : c.gap / c.tolerance);
@@ -175,17 +172,17 @@ function drops(step: CleanerResult["steps"][number]): string {
 function cleanerVerdict(result: CleanerResult): string {
   const [first] = result.steps;
   const rose = CLEANER_ORDER.some((p) => first.reduction[p] < 0) ? " (a negative drop means the reading went up)" : "";
-  const opening = `Its nearest sensor, sensor ${first.sensor.id} (${km(first.distance)} away), dropped by ${drops(first)}${rose}.`;
+  const opening = `The closest sensor, ${first.sensor.id} (${km(first.distance)} away), dropped by ${drops(first)}${rose}.`;
   if (!result.hadEffect) {
-    return `<p>${opening} All four are under ${EFFECT_THRESHOLD * 100}%, so the original reports that this cleaner had
-      no effect on the air around it and stops there.</p>`;
+    return `<p>${opening} None of them reach ${EFFECT_THRESHOLD * 100}%, so this cleaner had no effect and the check
+      stops there.</p>`;
   }
   const edge = result.steps[result.edge!];
   const stop = result.steps[result.edge! + 1];
   const reach = stop
-    ? `Going outwards, sensors keep showing a drop of ${EFFECT_THRESHOLD * 100}% or more up to sensor ${edge.sensor.id}. The next one, sensor ${stop.sensor.id} (${km(stop.distance)}), doesn't.`
-    : `Going outwards, every sensor shows a drop of ${EFFECT_THRESHOLD * 100}% or more, up to the furthest one, sensor ${edge.sensor.id}.`;
-  return `<p>${opening} ${reach} So the original reports a radius of ${printed(result.radius!)} km.</p>`;
+    ? `Going outwards, the sensors keep dropping by ${EFFECT_THRESHOLD * 100}% or more up to sensor ${edge.sensor.id}. The next one, ${stop.sensor.id} (${km(stop.distance)}), doesn't.`
+    : `Going outwards, every sensor drops by ${EFFECT_THRESHOLD * 100}% or more, up to the furthest one, ${edge.sensor.id}.`;
+  return `<p>${opening} ${reach} So the radius is ${printed(result.radius!)} km.</p>`;
 }
 
 function checkCard(p: Pollutant, c: Check): string {
@@ -199,11 +196,11 @@ function checkCard(p: Pollutant, c: Check): string {
     <div class="check${c.outside ? " outside" : ""}">
       <div class="check-head">
         <span class="check-name">${name(p)}</span>
-        <span class="check-verdict">${c.outside ? "Outside the tolerance" : "Within the tolerance"}</span>
+        <span class="check-verdict">${c.outside ? "outside" : "inside"}</span>
       </div>
       <div class="check-numbers">
         <span>reading <b>${two(c.reading)}</b></span>
-        <span>reference <b>${two(c.reference)}</b></span>
+        <span>mean <b>${two(c.reference)}</b></span>
         <span>gap <b>${two(c.gap)}</b></span>
         <span>tolerance <b>${two(c.tolerance)}</b></span>
       </div>

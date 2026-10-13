@@ -6,7 +6,7 @@ Live page: https://swan-maillard.github.io/airwatcher-map/
 
 ## The original project
 
-AirWatcher was a third-year project at INSA Lyon in 2023. We were four, writing a C++11 console app (Makefile, black-box shell tests, 11 of 11 passing) over a CSV data set of 100 sensors measuring O3, SO2, NO2 and PM10 once a day through 2019, plus 2 air cleaners. It had role-gated menus and area statistics. I wrote the faulty-sensor scan (`SensorAnalysis.cpp`, 117 of its 118 lines) and also worked on the air-cleaner analysis.
+AirWatcher was a third-year project at INSA Lyon in 2023. We were four, writing a C++11 console app (Makefile, black-box shell tests, 11 of 11 passing) over a CSV data set of 100 sensors measuring O3, SO2, NO2 and PM10 once a day through 2019, plus 2 air cleaners. It had role-gated menus and area statistics.
 
 Code: https://github.com/swan-maillard/INSA-3A-AirWatcher
 
